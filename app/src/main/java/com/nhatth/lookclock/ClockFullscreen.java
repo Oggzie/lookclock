@@ -1,18 +1,23 @@
 package com.nhatth.lookclock;
 
 import android.annotation.SuppressLint;
-import android.support.v7.app.ActionBar;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.v7.app.ActionBar;
+import android.support.v7.app.AppCompatActivity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
+
+import java.util.Calendar;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
  * status bar and navigation/system bar) with user interaction.
  */
 public class ClockFullscreen extends AppCompatActivity {
+    //Template declaration
     /**
      * Whether or not the system UI should be auto-hidden after
      * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
@@ -58,7 +63,7 @@ public class ClockFullscreen extends AppCompatActivity {
             if (actionBar != null) {
                 actionBar.show();
             }
-            mControlsView.setVisibility(View.VISIBLE);
+//            mControlsView.setVisibility(View.VISIBLE);
         }
     };
     private boolean mVisible;
@@ -83,6 +88,27 @@ public class ClockFullscreen extends AppCompatActivity {
         }
     };
 
+
+    //Activity declaration
+
+    /**
+     * The pulsing animation.
+     */
+    private Animation mPulseAnim;
+
+    /**
+     * A handler, which updates the time displayed on screen at a fixed-rate.
+     */
+    private Handler mUpdateTime;
+    /**
+     * The interval which {@link #mPulseAnim} runs and update the time in ms.
+     */
+    private static final int UPDATE_INTERVAL = 33;
+
+    private AutoResizeTextView mHourView, mMinView, mSecView;
+
+    private int mOldHour, mOldMin, mOldSec;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -90,22 +116,101 @@ public class ClockFullscreen extends AppCompatActivity {
         setContentView(R.layout.activity_clock_fullscreen);
 
         mVisible = true;
-        mControlsView = findViewById(R.id.fullscreen_content_controls);
+//        mControlsView = findViewById(R.id.fullscreen_content_controls);
         mContentView = findViewById(R.id.fullscreen_content);
+
+        mHourView = (AutoResizeTextView) findViewById(R.id.hour);
+        mMinView = (AutoResizeTextView) findViewById(R.id.minute);
+        mSecView = (AutoResizeTextView) findViewById(R.id.second);
 
 
         // Set up the user interaction to manually show or hide the system UI.
         mContentView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                toggle();
+//                toggle();
+                mSecView.startAnimation(mPulseAnim);
             }
         });
+
+        // Load current time, and set up the clock
+        Calendar currentTime = Calendar.getInstance();
+        int hour = mOldHour = currentTime.get(Calendar.HOUR);
+        if (currentTime.get(Calendar.AM_PM) == Calendar.PM) {
+            hour += 12;
+            mOldHour += 12;
+        }
+        int min = mOldMin = currentTime.get(Calendar.MINUTE);
+        int sec = mOldSec = currentTime.get(Calendar.SECOND);
+
+        setClockLabel(hour, min, sec);
+
+        // Load the animation
+        mPulseAnim = AnimationUtils.loadAnimation(this, R.anim.pulse);
+        mPulseAnim.setInterpolator(new ReverseHalfwayInterpolator());
+
+        // Set up the handler to update
+        mUpdateTime = new Handler();
+        mUpdateTime.post(new Runnable() {
+            @Override
+            public void run() {
+                Calendar currentTime = Calendar.getInstance();
+                int hour = currentTime.get(Calendar.HOUR);
+                if (currentTime.get(Calendar.AM_PM) == Calendar.PM) {
+                    hour += 12;
+                }
+                int min = currentTime.get(Calendar.MINUTE);
+                int sec = currentTime.get(Calendar.SECOND);
+
+                // Clock pulsing if the numbers change
+                if (hour != mOldHour) {
+                    mHourView.startAnimation(mPulseAnim);
+                    mOldHour = hour;
+                }
+                if (min != mOldMin) {
+                    mMinView.startAnimation(mPulseAnim);
+                    mOldMin = min;
+                }
+                if (sec != mOldSec) {
+                    mSecView.startAnimation(mPulseAnim);
+                    mOldSec = sec;
+                }
+
+                setClockLabel(hour, min, sec);
+
+                // run the handler again, and again, and again
+                mUpdateTime.postDelayed(this, UPDATE_INTERVAL);
+            }
+        });
+
+        //
 
         // Upon interacting with UI controls, delay any scheduled hide()
         // operations to prevent the jarring behavior of controls going away
         // while interacting with the UI.
-        findViewById(R.id.dummy_button).setOnTouchListener(mDelayHideTouchListener);
+//        findViewById(R.id.dummy_button).setOnTouchListener(mDelayHideTouchListener);
+    }
+
+    private void setClockLabel(int hour, int min, int sec) {
+        String sHour, sMin, sSec;
+
+        if (hour < 10)
+            sHour = String.valueOf(hour);
+        else
+            sHour = "0" + hour;
+        mHourView.setText(sHour);
+
+        if (min < 10)
+            sMin = String.valueOf(min);
+        else
+            sMin = "0" + min;
+        mMinView.setText(sMin);
+
+        if (sec < 10)
+            sSec = String.valueOf(sec);
+        else
+            sSec = "0" + sec;
+        mSecView.setText(sSec);
     }
 
     @Override
@@ -132,7 +237,7 @@ public class ClockFullscreen extends AppCompatActivity {
         if (actionBar != null) {
             actionBar.hide();
         }
-        mControlsView.setVisibility(View.GONE);
+//        mControlsView.setVisibility(View.GONE);
         mVisible = false;
 
         // Schedule a runnable to remove the status and navigation bar after a delay
