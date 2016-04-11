@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#333333"
-    tools:context="com.nhatth.lookclock.ClockFullscreen">
+    tools:context=".ClockFullscreenActivity">
 
     <!-- The primary full-screen view. This can be replaced with whatever view
          is needed to present your content, e.g. VideoView, SurfaceView,
@@ -12,11 +12,19 @@
     <!-- This FrameLayout insets its children based on system windows using
          android:fitsSystemWindows. -->
 
+    <TextureView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/fullscreen_camerapreview"
+        android:layout_gravity="bottom"
+        android:layout_weight="1" />
+
     <LinearLayout
         android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:id="@+id/fullscreen_content">
+        android:id="@+id/fullscreen_content"
+        android:background="@drawable/clock_background">
 
         <com.nhatth.lookclock.AutoResizeTextView
             android:layout_width="wrap_content"
@@ -31,7 +39,7 @@
             android:textAppearance="@style/ClockTextNormal"
             android:layout_weight="1"
             android:singleLine="false"
-            android:gravity="center_vertical" />
+            android:gravity="center_vertical|center_horizontal" />
 
         <com.nhatth.lookclock.AutoResizeTextView
             android:layout_width="wrap_content"
@@ -44,7 +52,7 @@
             android:textAppearance="@style/ClockTextNormal"
             android:layout_weight="1"
             android:maxLines="1"
-            android:gravity="center_vertical"
+            android:gravity="center_vertical|center_horizontal"
             android:singleLine="true" />
 
         <com.nhatth.lookclock.AutoResizeTextView
@@ -56,7 +64,7 @@
             android:paddingRight="15dp"
             android:textAppearance="@style/ClockTextNormal"
             android:layout_weight="1"
-            android:gravity="center_vertical"
+            android:gravity="center_vertical|center_horizontal"
             android:singleLine="true" />
     </LinearLayout>
 
