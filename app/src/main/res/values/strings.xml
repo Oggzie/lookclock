@@ -3,4 +3,21 @@
 
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="clock_name">Look-at Clock</string>
+
+    <string name="dialog_reason_title">Info</string>
+    <string name="dialog_reason_content">Look-at Clock uses front-facing camera and face detection
+        in order to determined whether or not you are looking at the screen, so it needs permission
+        to access the camera.</string>
+
+    <string name="dialog_popout_title">Remember!</string>
+    <string name="dialog_popout_content">Since Look-at Clock uses camera to work, battery life
+        will be affected and camera apps might not work. If you want to turn off Look-at Clock,
+        touch the app\'s notification.</string>
+
+    <string name="notification_title">Look-at Clock is running</string>
+    <string name="notification_content">Touch to stop Look-at Clock.</string>
+
+    <string name="error_open_camera_toast">Error while opening the camera.
+        Camera might not be available, or this device doesn\'t have a front-facing camera.</string>
 </resources>

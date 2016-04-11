@@ -4,7 +4,7 @@
     android:layout_height="45dp"
     android:focusable="false"
     android:contextClickable="false"
-    android:background="@drawable/clock_background_dim">
+    android:background="#a8212121">
 
     <TextureView
         android:layout_width="70dp"
@@ -12,8 +12,8 @@
         android:id="@+id/popout_camerapreview" />
 
     <TextView
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
+        android:layout_width="70dp"
+        android:layout_height="45dp"
         android:text="19:45"
         android:id="@+id/popout_clock"
         android:textSize="20dp"

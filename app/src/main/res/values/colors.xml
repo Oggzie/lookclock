@@ -4,8 +4,10 @@
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
 
-    <color name="clock_text_dim">#e4cccccc</color>
+    <color name="clock_text_dim">#e4a3a3a3</color>
     <color name="clock_text_lit">#d5fbfbfb</color>
+
+    <color name="clock_popout_bg">#a8212121</color>
 
     <color name="black_overlay">#66000000</color>
 </resources>

@@ -25,7 +25,6 @@ import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.Toast;
 
-import java.io.IOException;
 import java.util.Calendar;
 
 @SuppressWarnings("deprecation")
@@ -89,7 +88,7 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
 
     //Activity declaration
 
-    private enum ClockState {NOT_LOOKING_AT, LOOKING_AT, CHANGING};
+    ;
 
     private static final int REQUEST_CODE_CAMERA = 1;
 
@@ -102,6 +101,7 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
      * A handler, which updates the time displayed on screen at a fixed-rate.
      */
     private Handler mUpdateHandler;
+
     private Runnable mNotLookingRunnable;
     private Runnable mLookingRunnable;
 
@@ -113,7 +113,7 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
      */
     private static final int TIMEOUT = 3000;
     /**
-     * The interval which {@link #mPulseAnim} runs and update the time in ms.
+     * The interval which {@link #mUpdateHandler} runs and update the time in ms.
      */
     private static final int UPDATE_INTERVAL = 33;
 
@@ -126,7 +126,7 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
     /**
      * State of the clock right now. Default is NOT_LOOKING_AT
      */
-    private ClockState mCurrentClockState = ClockState.NOT_LOOKING_AT;
+    private ClockUtility.ClockState mCurrentClockState = ClockUtility.ClockState.NOT_LOOKING_AT;
 
     private AutoResizeTextView mHourView, mMinView, mSecView;
     private TextureView mCameraPreview;
@@ -248,7 +248,7 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
             public void run() {
                 mBackground.reverseTransition(CHANGE_DURATION);
                 //TODO Run the background animation first, then change the state and run.
-                mCurrentClockState = ClockState.NOT_LOOKING_AT;
+                mCurrentClockState = ClockUtility.ClockState.NOT_LOOKING_AT;
                 mUpdateHandler.removeCallbacks(mLookingRunnable);
                 mUpdateHandler.post(mNotLookingRunnable);
             }
@@ -271,8 +271,8 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
         if (faces.length > 0) {
 
             // First time someone look at, change the state
-            if (mCurrentClockState == ClockState.NOT_LOOKING_AT) {
-                mCurrentClockState = ClockState.LOOKING_AT;
+            if (mCurrentClockState == ClockUtility.ClockState.NOT_LOOKING_AT) {
+                mCurrentClockState = ClockUtility.ClockState.LOOKING_AT;
                 mSecView.setTextColor(Color.DKGRAY);
                 mBackground.startTransition(CHANGE_DURATION);
 
@@ -301,8 +301,10 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.menu_popout) {
             //TODO Open the Pop out activity
+            CameraUtility.releaseCamera(mCamera);
+            mCamera = null;
+            exitActivity();
             startService(new Intent(getApplicationContext(), ClockPopoutService.class));
-            Log.i(TAG, "onOptionsItemSelected: Pressed on Popout button");
         }
         return true;
     }
@@ -315,7 +317,13 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
-                    initCamera(mCameraPreview.getSurfaceTexture());
+                    try {
+                        mCamera = CameraUtility.initCamera(mCameraPreview.getSurfaceTexture(), this);
+                    } catch (Exception e) {
+                        Toast.makeText(this, R.string.error_open_camera_toast, Toast.LENGTH_LONG)
+                                .show();
+                        exitActivity();
+                    }
 
                 } else {
                     // Camera request is refused...
@@ -352,31 +360,16 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
 
         // Yes WE CAN!
         else {
-            initCamera(surface);
+            try {
+                mCamera = CameraUtility.initCamera(surface, this);
+            } catch (Exception e) {
+                Toast.makeText(this, R.string.error_open_camera_toast, Toast.LENGTH_LONG).show();
+                exitActivity();
+            }
         }
     }
 
-    private void initCamera(SurfaceTexture surface) {
-        int frontCameraId = findFrontFacingCamera();
-        if (frontCameraId == -1) {
-            Log.e(TAG, "onCreate: Can't find the id of the front-facing camera!");
-            Toast.makeText(this, "Can't find front-facing camera. App will quit.",
-                    Toast.LENGTH_SHORT).show();
-            exitActivity();
-        }
 
-        mCamera = Camera.open(frontCameraId);
-
-        try {
-            mCamera.setPreviewTexture(surface);
-            mCamera.startPreview();
-        } catch (IOException ioe) {
-            Log.e(TAG, "onSurfaceTextureAvailable: Can't open the camera!", ioe);
-        }
-
-        mCamera.setFaceDetectionListener(this);
-        mCamera.startFaceDetection();
-    }
 
     @Override
     public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
@@ -385,9 +378,9 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
 
     @Override
     public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-        mCamera.stopFaceDetection();
-        mCamera.stopPreview();
-        mCamera.release();
+        if (mCamera != null) { // if camera is not released
+            CameraUtility.releaseCamera(mCamera);
+        }
         return true;
     }
 
@@ -397,52 +390,9 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
     }
 
     private void setClockLabel(int hour, int min, int sec) {
-        String sHour, sMin, sSec;
-
-        // Format the time with zero leading
-        if (hour >= 10)
-            sHour = String.valueOf(hour);
-        else
-            sHour = "0" + hour;
-        mHourView.setText(sHour);
-
-        if (min >= 10)
-            sMin = String.valueOf(min);
-        else
-            sMin = "0" + min;
-        mMinView.setText(sMin);
-
-        if (sec >= 10)
-            sSec = String.valueOf(sec);
-        else
-            sSec = "0" + sec;
-        mSecView.setText(sSec);
-    }
-
-    /**
-     * By Lars Vogel
-     * <p/>
-     * From http://www.vogella.com/tutorials/AndroidCamera/article.html
-     * <p/>
-     * <p/>
-     * Get the id of the front-facing camera on the device
-     *
-     * @return id of the front-facing camera
-     */
-    private int findFrontFacingCamera() {
-        int cameraId = -1;
-        // Search for the front facing camera
-        int numberOfCameras = Camera.getNumberOfCameras();
-        for (int i = 0; i < numberOfCameras; i++) {
-            Camera.CameraInfo info = new Camera.CameraInfo();
-            Camera.getCameraInfo(i, info);
-            if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-                Log.i(TAG, "findFrontFacingCamera: cameraId found: " + i);
-                cameraId = i;
-                break;
-            }
-        }
-        return cameraId;
+        mHourView.setText(ClockUtility.addLeadingZero(hour));
+        mMinView.setText(ClockUtility.addLeadingZero(min));
+        mSecView.setText(ClockUtility.addLeadingZero(sec));
     }
 
     /**
