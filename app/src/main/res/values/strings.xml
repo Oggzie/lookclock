@@ -1,11 +1,11 @@
 <resources>
-    <string name="app_name">LookClock</string>
+    <string name="app_name">Look-at Clock</string>
 
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
     <string name="clock_name">Look-at Clock</string>
 
-    <string name="dialog_reason_title">Info</string>
+    <string name="dialog_reason_title">About Permission</string>
     <string name="dialog_reason_content">Look-at Clock uses front-facing camera and face detection
         in order to determined whether or not you are looking at the screen, so it needs permission
         to access the camera.</string>

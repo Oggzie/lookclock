@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#3F51B5</color>
-    <color name="colorPrimaryDark">#303F9F</color>
-    <color name="colorAccent">#FF4081</color>
+    <color name="colorPrimary">#ad1457</color>
+    <color name="colorPrimaryDark">#880e4f</color>
+    <color name="colorAccent">#536dfe</color>
 
     <color name="clock_text_dim">#e4a3a3a3</color>
     <color name="clock_text_lit">#d5fbfbfb</color>
+
+    <color name="gradient_top">#7a3755</color>
+    <color name="gradient_bottom">#e39761</color>
 
     <color name="clock_popout_bg">#a8212121</color>
 

@@ -1,10 +1,13 @@
 package com.nhatth.lookclock;
 
 import android.Manifest;
+import android.animation.Animator;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.graphics.SurfaceTexture;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.TransitionDrawable;
@@ -15,6 +18,7 @@ import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.ActionBar;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -24,6 +28,12 @@ import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.Toast;
+
+import com.nhatth.lookclock.utility.ArgbEvaluator;
+import com.nhatth.lookclock.utility.CameraUtility;
+import com.nhatth.lookclock.utility.ClockUtility;
+import com.nhatth.lookclock.utility.GradientColorAnimator;
+import com.nhatth.lookclock.utility.ReverseHalfwayInterpolator;
 
 import java.util.Calendar;
 
@@ -88,14 +98,18 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
 
     //Activity declaration
 
-    ;
-
     private static final int REQUEST_CODE_CAMERA = 1;
 
     /**
      * The pulsing animation.
      */
     private Animation mPulseAnim;
+
+    // Clock text color animation
+    AnimatorSet mDimToLitSet, mLitToDimSet;
+
+    // Background color animation
+    GradientColorAnimator mBackgroundAnim;
 
     /**
      * A handler, which updates the time displayed on screen at a fixed-rate.
@@ -162,22 +176,6 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
             }
         });
 
-        // Load current time, and set up the clock
-        Calendar currentTime = Calendar.getInstance();
-        int hour = mOldHour = currentTime.get(Calendar.HOUR);
-        if (currentTime.get(Calendar.AM_PM) == Calendar.PM) {
-            hour += 12;
-            mOldHour += 12;
-        }
-        int min = mOldMin = currentTime.get(Calendar.MINUTE);
-        int sec = mOldSec = currentTime.get(Calendar.SECOND);
-
-        setClockLabel(hour, min, sec);
-
-        // Load the animation
-        mPulseAnim = AnimationUtils.loadAnimation(this, R.anim.pulse);
-        mPulseAnim.setInterpolator(new ReverseHalfwayInterpolator());
-
         // Set up the handler to update
         mUpdateHandler = new Handler();
         mNotLookingRunnable = new Runnable() {
@@ -218,6 +216,9 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
             public void run() {
                 Calendar currentTime = Calendar.getInstance();
                 int hour = currentTime.get(Calendar.HOUR);
+                if (currentTime.get(Calendar.AM_PM) == Calendar.PM) {
+                    hour += 12;
+                }
                 int min = currentTime.get(Calendar.MINUTE);
                 int sec = currentTime.get(Calendar.SECOND);
 
@@ -234,21 +235,22 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
                     mSecView.startAnimation(mPulseAnim);
                     mOldSec = sec;
                 }
-
-                //TODO Run the background gradient animation
-
                 mUpdateHandler.postDelayed(this, UPDATE_INTERVAL);
             }
         };
 
-        //Set up the timeout handler, which change the state of the clock
+        // Set up the timeout handler, which change the state of the clock
         mTimeoutHandler = new Handler();
         mTimeoutRunnable = new Runnable() {
             @Override
             public void run() {
+
+                // Animate all the changes
                 mBackground.reverseTransition(CHANGE_DURATION);
-                //TODO Run the background animation first, then change the state and run.
-                mCurrentClockState = ClockUtility.ClockState.NOT_LOOKING_AT;
+                mLitToDimSet.start();
+                mBackgroundAnim.stopAndReset();
+
+                mCurrentClockState = ClockUtility.ClockState.CHANGING;
                 mUpdateHandler.removeCallbacks(mLookingRunnable);
                 mUpdateHandler.post(mNotLookingRunnable);
             }
@@ -257,10 +259,89 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
         mBackground = (TransitionDrawable) mContentView.getBackground();
         mGradientBackground = (GradientDrawable) mBackground.getDrawable(1);
 
-        // Upon interacting with UI controls, delay any scheduled hide()
-        // operations to prevent the jarring behavior of controls going away
-        // while interacting with the UI.
-//        findViewById(R.id.dummy_button).setOnTouchListener(mDelayHideTouchListener);
+        // Load the animation
+        loadAnimation();
+
+    }
+
+    private void loadAnimation() {
+        mPulseAnim = AnimationUtils.loadAnimation(this, R.anim.pulse);
+        mPulseAnim.setInterpolator(new ReverseHalfwayInterpolator());
+
+        ObjectAnimator dimToLit = ObjectAnimator.ofInt(mHourView, "textColor",
+                getResources().getColor(R.color.clock_text_dim),
+                getResources().getColor(R.color.clock_text_lit));
+        dimToLit.setEvaluator(ArgbEvaluator.getInstance());
+        ObjectAnimator[] dimToLitSets = {dimToLit, dimToLit.clone(), dimToLit.clone()};
+        dimToLitSets[1].setTarget(mMinView);
+        dimToLitSets[2].setTarget(mSecView);
+        mDimToLitSet = new AnimatorSet();
+        mDimToLitSet.playTogether(dimToLitSets);
+        mDimToLitSet.setDuration(CHANGE_DURATION);
+
+        mDimToLitSet.addListener(new Animator.AnimatorListener() {
+            @Override
+            public void onAnimationStart(Animator animation) {
+
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mCurrentClockState = ClockUtility.ClockState.LOOKING_AT;
+                mBackgroundAnim.animateBothIndefinite(30, 5000);
+                mBackgroundAnim.start();
+            }
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+
+            }
+
+            @Override
+            public void onAnimationRepeat(Animator animation) {
+
+            }
+        });
+
+        ObjectAnimator litToDim = ObjectAnimator.ofInt(mHourView, "textColor",
+                getResources().getColor(R.color.clock_text_lit),
+                getResources().getColor(R.color.clock_text_dim));
+        litToDim.setEvaluator(ArgbEvaluator.getInstance());
+        ObjectAnimator[] litToDimSets = {litToDim, litToDim.clone(), litToDim.clone()};
+        litToDimSets[1].setTarget(mMinView);
+        litToDimSets[2].setTarget(mSecView);
+        mLitToDimSet = new AnimatorSet();
+        mLitToDimSet.playTogether(litToDimSets);
+        mLitToDimSet.setDuration(CHANGE_DURATION);
+
+        litToDim.addListener(new Animator.AnimatorListener() {
+            @Override
+            public void onAnimationStart(Animator animation) {
+
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mCurrentClockState = ClockUtility.ClockState.NOT_LOOKING_AT;
+                mGradientBackground.setColors(new int[] {getResources().getColor(R.color.gradient_top),
+                    getResources().getColor(R.color.gradient_bottom)});
+            }
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+
+            }
+
+            @Override
+            public void onAnimationRepeat(Animator animation) {
+
+            }
+        });
+
+        mBackgroundAnim = new GradientColorAnimator(mGradientBackground,
+                getResources().getColor(R.color.gradient_top),
+                getResources().getColor(R.color.gradient_bottom));
+        mBackgroundAnim.animateBothIndefinite(30, 5000);
     }
 
     @Override
@@ -272,9 +353,10 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
 
             // First time someone look at, change the state
             if (mCurrentClockState == ClockUtility.ClockState.NOT_LOOKING_AT) {
-                mCurrentClockState = ClockUtility.ClockState.LOOKING_AT;
-                mSecView.setTextColor(Color.DKGRAY);
+                mCurrentClockState = ClockUtility.ClockState.CHANGING;
+
                 mBackground.startTransition(CHANGE_DURATION);
+                mDimToLitSet.start();
 
                 // Change the runnable of handler to stop update time
                 mUpdateHandler.removeCallbacks(mNotLookingRunnable);
@@ -284,10 +366,6 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
             // Remove the current timeout, and schedule the next timeout
             mTimeoutHandler.removeCallbacks(mTimeoutRunnable);
             mTimeoutHandler.postDelayed(mTimeoutRunnable, TIMEOUT);
-        }
-        // No one is looking!
-        else {
-            mSecView.setTextColor(Color.parseColor("#CCCCCC"));
         }
     }
 
@@ -300,11 +378,23 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.menu_popout) {
-            //TODO Open the Pop out activity
-            CameraUtility.releaseCamera(mCamera);
-            mCamera = null;
-            exitActivity();
-            startService(new Intent(getApplicationContext(), ClockPopoutService.class));
+
+            AlertDialog.Builder builder =
+                    new AlertDialog.Builder(this)
+                            .setTitle(R.string.dialog_popout_title)
+                            .setMessage(R.string.dialog_popout_content)
+                            .setPositiveButton("GOT IT", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    // release the camera for pop out clock
+                                    CameraUtility.releaseCamera(mCamera);
+                                    mCamera = null;
+
+                                    exitActivity();
+                                    startService(new Intent(getApplicationContext(), ClockPopoutService.class));
+                                }
+                            });
+            builder.create().show();
         }
         return true;
     }
@@ -350,12 +440,26 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
         if (cameraPermission != PackageManager.PERMISSION_GRANTED) {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this,
                     Manifest.permission.CAMERA)) {
-                //TODO Show the reason why this app needs camera permission
+
+                AlertDialog.Builder builder =
+                        new AlertDialog.Builder(this)
+                        .setTitle(R.string.dialog_reason_title)
+                        .setMessage(R.string.dialog_reason_content)
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                ActivityCompat.requestPermissions(ClockFullscreenActivity.this,
+                                        new String[]{Manifest.permission.CAMERA},
+                                        REQUEST_CODE_CAMERA);
+                            }
+                        });
+                builder.create().show();
+            } else {
+                // Request the permission needed for the camera
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.CAMERA},
+                        REQUEST_CODE_CAMERA);
             }
-            // Request the permission needed for the camera
-            ActivityCompat.requestPermissions(this,
-                    new String[] {Manifest.permission.CAMERA},
-                    REQUEST_CODE_CAMERA);
         }
 
         // Yes WE CAN!
@@ -368,8 +472,6 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
             }
         }
     }
-
-
 
     @Override
     public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {

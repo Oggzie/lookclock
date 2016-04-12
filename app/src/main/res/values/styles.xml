@@ -25,7 +25,7 @@
         <item name="android:paddingLeft">15dp</item>
         <item name="android:paddingRight">15dp</item>
         <item name="android:textColor">@color/clock_text_dim</item>
-        <item name="android:textSize">200dp</item>
+        <item name="android:textSize">130dp</item>
     </style>
 
 </resources>

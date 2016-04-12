@@ -1,4 +1,4 @@
-package com.nhatth.lookclock;
+package com.nhatth.lookclock.utility;
 
 import android.content.Context;
 import android.text.format.DateFormat;
@@ -11,7 +11,7 @@ import java.util.Calendar;
  */
 public class ClockUtility {
 
-    enum ClockState {NOT_LOOKING_AT, LOOKING_AT, CHANGING}
+    public enum ClockState {NOT_LOOKING_AT, LOOKING_AT, CHANGING}
 
     /**
      * Add a leading zero, if the number is less than 10
@@ -30,7 +30,6 @@ public class ClockUtility {
 
     /**
      * Return current time in the HH:MM style with matching device's time format (12 or 24)
-     * @param context
      * @return Formatted time String
      */
     public static String getCurrentFormattedTime (Context context) {

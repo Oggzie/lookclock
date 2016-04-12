@@ -23,6 +23,10 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.nhatth.lookclock.utility.CameraUtility;
+import com.nhatth.lookclock.utility.ClockUtility;
+
+@SuppressWarnings("deprecation")
 public class ClockPopoutService extends Service
         implements TextureView.SurfaceTextureListener, Camera.FaceDetectionListener{
 
@@ -35,7 +39,7 @@ public class ClockPopoutService extends Service
      * The period after there isn't anybody looking at the clock
      * to change the clock's state.
      */
-    private static final int TIMEOUT = 3000;
+    private static final int TIMEOUT = 7500;
     /**
      * The interval which {@link #mUpdateHandler} runs and update the time in ms.
      */
@@ -58,7 +62,7 @@ public class ClockPopoutService extends Service
 
     private Camera mCamera;
 
-    private BroadcastReceiver mReceiver;
+    private BroadcastReceiver mReceiver, mScreenStateReceiver;
 
     @Override
     public void onCreate() {
@@ -98,6 +102,40 @@ public class ClockPopoutService extends Service
                 mClockText.setTextColor(getResources().getColor(R.color.clock_text_dim));
             }
         };
+
+        // Register screen on/off event
+        IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+        filter.addAction(Intent.ACTION_SCREEN_OFF);
+        mScreenStateReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                // Turn off the camera to save battery
+                if(intent.getAction().equals(Intent.ACTION_SCREEN_OFF)) {
+                    Log.i(TAG, "onReceive: Screen turns off");
+                    if (mCamera != null) {
+                        CameraUtility.releaseCamera(mCamera);
+                    }
+                }
+                // And if the user switch phone on, so do us!
+                else if(intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
+                    Log.i(TAG, "onReceive: Screen turns on");
+                    Handler handler = new Handler();
+                    // delay the opening of camera, in case screen is locked by face
+                    handler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                mCamera = CameraUtility.initCamera(mCameraPreview.getSurfaceTexture(),
+                                        ClockPopoutService.this);
+                            } catch (Exception e) {
+                                Log.e(TAG, "onSurfaceTextureAvailable: Error while opening camera", e);
+                            }
+                        }
+                    }, 5000);
+                }
+            }
+        };
+        registerReceiver(mScreenStateReceiver, filter);
 
         // Dynamically register the broadcast receiver for our notification.
         IntentFilter intentFilter = new IntentFilter();
@@ -152,6 +190,7 @@ public class ClockPopoutService extends Service
         }
         // Unregister the stop receiver
         unregisterReceiver(mReceiver);
+        unregisterReceiver(mScreenStateReceiver);
         // Remove the notification
         NotificationManager notifyMgr =
                 (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
@@ -184,9 +223,11 @@ public class ClockPopoutService extends Service
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+        Log.d(TAG, "onSurfaceTextureAvailable");
         try {
             mCamera = CameraUtility.initCamera(surface, this);
         } catch (Exception e) {
+            Log.e(TAG, "onSurfaceTextureAvailable: Error while opening camera", e);
             Toast.makeText(this, R.string.error_open_camera_toast, Toast.LENGTH_LONG).show();
         }
         mCameraPreview.setVisibility(View.INVISIBLE);

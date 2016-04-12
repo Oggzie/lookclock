@@ -1,4 +1,4 @@
-package com.nhatth.lookclock;
+package com.nhatth.lookclock.utility;
 
 import android.view.animation.Interpolator;
 

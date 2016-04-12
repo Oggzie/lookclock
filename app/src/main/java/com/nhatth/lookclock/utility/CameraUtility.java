@@ -1,4 +1,4 @@
-package com.nhatth.lookclock;
+package com.nhatth.lookclock.utility;
 
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
@@ -10,6 +10,7 @@ import java.io.IOException;
  * Created by nhatth on 4/11/16.
  * A utility class for all things camera related.
  */
+@SuppressWarnings("deprecation")
 public class CameraUtility {
     private static final String TAG = "CameraUtility";
 
