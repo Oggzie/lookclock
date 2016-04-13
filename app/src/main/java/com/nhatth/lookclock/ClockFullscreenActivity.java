@@ -12,8 +12,11 @@ import android.graphics.SurfaceTexture;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.TransitionDrawable;
 import android.hardware.Camera;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -59,6 +62,8 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
      * and a change of the status and navigation bar.
      */
     private static final int UI_ANIMATION_DELAY = 300;
+
+    private static final int REQUEST_CODE_OVERLAY = 100;
     private final Handler mHideHandler = new Handler();
     private View mContentView;
     private final Runnable mHidePart2Runnable = new Runnable() {
@@ -377,26 +382,55 @@ public class ClockFullscreenActivity extends AppCompatActivity implements Textur
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+
+
         if (item.getItemId() == R.id.menu_popout) {
 
-            AlertDialog.Builder builder =
-                    new AlertDialog.Builder(this)
-                            .setTitle(R.string.dialog_popout_title)
-                            .setMessage(R.string.dialog_popout_content)
-                            .setPositiveButton("GOT IT", new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    // release the camera for pop out clock
-                                    CameraUtility.releaseCamera(mCamera);
-                                    mCamera = null;
-
-                                    exitActivity();
-                                    startService(new Intent(getApplicationContext(), ClockPopoutService.class));
-                                }
-                            });
-            builder.create().show();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if(!Settings.canDrawOverlays(this)) {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:" + getPackageName()));
+                    startActivityForResult(intent, REQUEST_CODE_OVERLAY);
+                }
+                else {
+                    popClock();
+                }
+            }
+            else {
+                popClock();
+            }
         }
         return true;
+    }
+
+    private void popClock() {
+        AlertDialog.Builder builder =
+                new AlertDialog.Builder(this)
+                        .setTitle(R.string.dialog_popout_title)
+                        .setMessage(R.string.dialog_popout_content)
+                        .setPositiveButton("GOT IT", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                // release the camera for pop out clock
+                                CameraUtility.releaseCamera(mCamera);
+                                mCamera = null;
+
+                                exitActivity();
+                                startService(new Intent(getApplicationContext(), ClockPopoutService.class));
+                            }
+                        });
+        builder.create().show();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_CODE_OVERLAY) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (Settings.canDrawOverlays(this)) {
+                    popClock();
+                }
+            }
+        }
     }
 
     @Override

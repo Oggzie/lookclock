@@ -16,6 +16,7 @@ import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.TextureView;
 import android.view.View;
 import android.view.WindowManager;
@@ -49,6 +50,7 @@ public class ClockPopoutService extends Service
     private FrameLayout mContainer;
     private TextView mClockText;
     private TextureView mCameraPreview;
+    WindowManager.LayoutParams mLayoutParams;
 
     private ClockUtility.ClockState mCurrentClockState = ClockUtility.ClockState.NOT_LOOKING_AT;
 
@@ -146,7 +148,7 @@ public class ClockPopoutService extends Service
         // Show the notification for the user to stop and to note that our clock is running
         NotificationCompat.Builder notifyBuilder =
                 new NotificationCompat.Builder(this)
-                .setSmallIcon(android.R.color.transparent)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(getString(R.string.notification_title))
                 .setContentText(getString(R.string.notification_content))
                 .setOngoing(true)
@@ -164,18 +166,40 @@ public class ClockPopoutService extends Service
         notifyMgr.notify(NOTIFICATION_ID, notifyBuilder.build());
 
         // Attach the clock to the window
-        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+        mLayoutParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_PHONE,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT);
 
-        params.gravity = Gravity.TOP | Gravity.LEFT;
-        params.x = 0;
-        params.y = 100;
+        mLayoutParams.gravity = Gravity.TOP | Gravity.LEFT;
+        mLayoutParams.x = 0;
+        mLayoutParams.y = 100;
 
-        mWindowManager.addView(mContainer, params);
+        // Make it move
+        mContainer.setOnTouchListener(new View.OnTouchListener() {
+            private int initialY;
+            private float initialTouchY;
+
+            @Override public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        initialY = mLayoutParams.y;
+                        initialTouchY = event.getRawY();
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                        return true;
+                    case MotionEvent.ACTION_MOVE:
+                        mLayoutParams.y = initialY + (int) (event.getRawY() - initialTouchY);
+                        mWindowManager.updateViewLayout(mContainer, mLayoutParams);
+                        return true;
+                }
+                return false;
+            }
+        });
+
+        mWindowManager.addView(mContainer, mLayoutParams);
 
     }
 
